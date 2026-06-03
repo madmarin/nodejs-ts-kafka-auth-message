@@ -4,39 +4,74 @@ import { JwtService } from "./shared/jwt.service";
 import { dataSource } from "../config";
 import { Message } from "../entities";
 
+const MESSAGE_TOPIC = "message";
+const CONSUMER_GROUP = "cyclia-message-consumer";
+
+interface MessagePayload {
+  sender_id: string;
+  recipient_id: string;
+  message: string;
+}
+
 export default class KafkaService extends JwtService {
   private static readonly messageRepository = dataSource.getRepository(Message);
 
   static produceMessage = async (
-    sender_id: any,
-    recipient_id: any,
+    sender_id: string,
+    recipient_id: string,
     message: string,
   ) => {
+    const producer = kafka.producer({
+      createPartitioner: Partitioners.LegacyPartitioner,
+    });
+
+    await producer.connect();
     try {
-      const producer = await this.createProducer();
+      const payload: MessagePayload = { sender_id, recipient_id, message };
 
       await producer.send({
-        messages: [{ key: `message-${Date.now()}`, value: message }],
-        topic: "message",
+        topic: MESSAGE_TOPIC,
+        messages: [
+          {
+            key: `message-${Date.now()}`,
+            value: JSON.stringify(payload),
+          },
+        ],
       });
 
-      const newMessage = new Message();
-      newMessage.sender_id = sender_id;
-      newMessage.recipient_id = recipient_id;
-      newMessage.message = message;
-
-      const data = await this.messageRepository.save(newMessage);
-
-      return {
-        message: "Message sending successfully",
-        at: data.created_time,
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        console.log("Error sending message, reason: ", error.message);
-        throw error;
-      }
+      return { message: "Message queued successfully" };
+    } finally {
+      await producer.disconnect();
     }
+  };
+
+  static startConsumer = async () => {
+    const consumer = kafka.consumer({ groupId: CONSUMER_GROUP });
+    await consumer.connect();
+    await consumer.subscribe({ topic: MESSAGE_TOPIC, fromBeginning: false });
+
+    await consumer.run({
+      eachMessage: async ({ message }) => {
+        try {
+          if (!message.value) return;
+
+          const payload: MessagePayload = JSON.parse(message.value.toString());
+
+          const newMessage = new Message();
+          newMessage.sender_id = payload.sender_id as any;
+          newMessage.recipient_id = payload.recipient_id as any;
+          newMessage.message = payload.message;
+
+          await this.messageRepository.save(newMessage);
+        } catch (error) {
+          if (error instanceof Error) {
+            console.error("Consumer error processing message:", error.message);
+          }
+        }
+      },
+    });
+
+    console.log("✅ Kafka consumer running on topic:", MESSAGE_TOPIC);
   };
 
   static getAllMessages = async () => {
@@ -56,24 +91,14 @@ export default class KafkaService extends JwtService {
         .getRawMany();
 
       return {
-        response: {
-          messages,
-        },
+        response: { messages },
         success: true,
       };
     } catch (error) {
       if (error instanceof Error) {
-        console.log("Get all users error, reason: ", error.message);
+        console.log("Get all messages error, reason: ", error.message);
         throw error;
       }
     }
-  };
-
-  private static createProducer = async () => {
-    const producer = kafka.producer({
-      createPartitioner: Partitioners.LegacyPartitioner,
-    });
-    await producer.connect();
-    return producer;
   };
 }

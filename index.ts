@@ -1,30 +1,31 @@
-import express from "express";
 import * as dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import { initializeDatabase } from "./src/config";
-import { identityRouter } from "./src/v1/routes";
-import { userRouter } from "./src/v1/routes";
-import { messageRouter } from "./src/v1/routes";
+import { identityRouter, userRouter, messageRouter } from "./src/v1/routes";
 import { swaggerDocs as swaggerDocsV1 } from "./src/v1/swagger";
+import KafkaService from "./src/services/kafka.service";
 
 const bootstrap = async () => {
   const app = express();
-  dotenv.config();
+  const port = process.env.PORT ?? "84";
 
   app.use(express.json());
   app.use("/api/v1", userRouter);
   app.use("/api/v1", identityRouter);
   app.use("/api/v1", messageRouter);
 
-  app.get("/check-health", async (req, res) => {
-    const message = "Api Up!";
-    res.status(200).json({ message });
+  app.get("/check-health", (_req, res) => {
+    res.status(200).json({ message: "Api Up!", uptime: process.uptime() });
   });
 
   await initializeDatabase();
+  await KafkaService.startConsumer();
 
-  app.listen(process.env.PORT, () => {
+  app.listen(port, () => {
     swaggerDocsV1(app);
-    console.log("🚀 API Running:", true);
+    console.log(`🚀 API Running on port ${port}`);
   });
 };
 

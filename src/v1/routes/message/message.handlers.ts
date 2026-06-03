@@ -9,7 +9,7 @@ export const messageHandler = async (req: Request, res: Response) => {
     recipient_id,
     message,
   );
-  res.status(200).json(result);
+  res.status(202).json(result);
 };
 
 export const getAllMessagesHandler = async (req: Request, res: Response) => {

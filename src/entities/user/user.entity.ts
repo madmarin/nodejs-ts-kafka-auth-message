@@ -2,6 +2,7 @@ import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
+  CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
   BeforeInsert,
@@ -39,8 +40,14 @@ export class User {
   @Column({ type: "varchar", nullable: true })
   photoUrl: string;
 
-  @Column({ type: "boolean", name: "verified", nullable: true })
+  @Column({ type: "boolean", name: "verified", nullable: true, default: false })
   verified: boolean;
+
+  @CreateDateColumn({
+    name: "created_at",
+    type: "timestamp",
+  })
+  createdAt: Date;
 
   @UpdateDateColumn({
     name: "updated_at",

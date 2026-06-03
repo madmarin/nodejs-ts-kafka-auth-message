@@ -25,9 +25,11 @@ export const ErrorHandlerWrapper = (handler: Handler) => {
 export const AuthorizationWrapper = (handler: HandlerWithSub) => {
   return async (req: Request, res: Response) => {
     try {
-      const sub = JwtService.authorize(
-        req.headers?.authorization.split(" ")[1],
-      );
+      const authHeader = req.headers?.authorization;
+      const token = authHeader?.startsWith("Bearer ")
+        ? authHeader.split(" ")[1]
+        : undefined;
+      const sub = JwtService.authorize(token);
       await handler(req, res, sub);
     } catch (error) {
       console.log(
@@ -48,6 +50,6 @@ export const cleanObject = (obj: any) => {
 };
 
 export const kafka = new Kafka({
-  brokers: ["localhost:9092"],
-  clientId: "my-app",
+  brokers: [(process.env.KAFKA_BROKER ?? "localhost:9092")],
+  clientId: "cyclia-app",
 });

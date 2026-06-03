@@ -2,9 +2,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  OneToOne,
+  ManyToOne,
   JoinColumn,
-  UpdateDateColumn,
+  CreateDateColumn,
 } from "typeorm";
 
 import { User } from "../user";
@@ -14,28 +14,20 @@ export class Message {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @OneToOne(() => User, {
-    eager: true,
-    cascade: true,
-  })
+  @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: "sender_id" })
   sender_id: User;
 
-  @OneToOne(() => User, {
-    eager: true,
-    cascade: true,
-  })
+  @ManyToOne(() => User, { eager: true })
   @JoinColumn({ name: "recipient_id" })
   recipient_id: User;
 
-  @Column()
+  @Column({ type: "text" })
   message: string;
 
-  @UpdateDateColumn({
+  @CreateDateColumn({
     name: "created_time",
     type: "timestamp",
-    default: () => "CURRENT_TIMESTAMP",
-    onUpdate: "CURRENT_TIMESTAMP",
   })
   created_time: Date;
 }
